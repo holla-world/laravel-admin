@@ -315,7 +315,7 @@ class Form implements Renderable
 
     public function pureStore($data = null)
     {
-        $data = $data ?: Input::all();
+        $data = $data ? : Input::all();
 
         // Handle validation errors.
         if ($validationMessages = $this->validationMessages($data)) {
