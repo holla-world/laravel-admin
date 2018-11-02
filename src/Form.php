@@ -346,9 +346,7 @@ class Form implements Renderable
      */
     public function store()
     {
-        $response = $this->pureStore();
-
-        if ($response !== true) {
+        if (($response = $this->pureStore()) instanceof Response) {
             return $response;
         }
 
