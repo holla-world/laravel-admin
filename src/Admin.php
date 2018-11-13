@@ -10,7 +10,6 @@ use Encore\Admin\Widgets\Navbar;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Config;
-use Illuminate\Support\Facades\Request;
 use Illuminate\Support\Facades\Route;
 use InvalidArgumentException;
 
@@ -50,16 +49,6 @@ class Admin
      * @var array
      */
     public static $extensions = [];
-
-    /**
-     * @var []Closure
-     */
-    public static $booting;
-
-    /**
-     * @var []Closure
-     */
-    public static $booted;
 
     /**
      * Returns the long version of Laravel-admin.
@@ -161,7 +150,9 @@ class Admin
             return;
         }
 
-        static::$css = array_merge(static::$css, (array) $css);
+        $css = array_get(Form::collectFieldAssets(), 'css', []);
+
+        static::$css = array_merge(static::$css, $css);
 
         return view('admin::partials.css', ['css' => array_unique(static::$css)]);
     }
@@ -181,7 +172,9 @@ class Admin
             return;
         }
 
-        static::$js = array_merge(static::$js, (array) $js);
+        $js = array_get(Form::collectFieldAssets(), 'js', []);
+
+        static::$js = array_merge(static::$js, $js);
 
         return view('admin::partials.js', ['js' => array_unique(static::$js)]);
     }
@@ -311,35 +304,5 @@ class Admin
     public static function extend($name, $class)
     {
         static::$extensions[$name] = $class;
-    }
-
-    /**
-     * @param callable $callback
-     */
-    public static function booting(callable $callback)
-    {
-        static::$booting[] = $callback;
-    }
-
-    /**
-     * @param callable $callback
-     */
-    public static function booted(callable $callback)
-    {
-        static::$booted[] = $callback;
-    }
-
-    /*
-     * Disable Pjax for current Request
-     *
-     * @return void
-     */
-    public function disablePjax()
-    {
-        $request = Request::instance();
-
-        if ($request->pjax()) {
-            $request->headers->set('X-PJAX', false);
-        }
     }
 }
