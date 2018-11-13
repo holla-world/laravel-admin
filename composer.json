@@ -1,19 +1,19 @@
 {
-    "name": "encore/laravel-admin",
-    "description": "laravel admin",
+    "name": "encore2/laravel-admin2",
+    "description": "laravel admin2",
     "type": "library",
     "keywords": ["laravel", "admin", "grid", "form"],
-    "homepage": "https://github.com/z-song/laravel-admin",
+    "homepage": "https://github.com/boz14676/laravel-admin2.git",
     "license": "MIT",
     "authors": [
         {
-            "name": "zsong",
-            "email": "zosong@126.com"
+            "name": "taylor",
+            "email": "boz14676@gmail.com"
         }
     ],
     "require": {
         "php": ">=7.0.0",
-        "symfony/dom-crawler": "~3.1",
+        "symfony/dom-crawler": "~3.1|~4.0",
         "laravel/framework": "~5.5",
         "doctrine/dbal": "2.*"
     },

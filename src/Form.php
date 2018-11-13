@@ -11,6 +11,7 @@ use Encore\Admin\Form\Tab;
 use Illuminate\Contracts\Support\Renderable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
@@ -90,23 +91,23 @@ class Form implements Renderable
     /**
      * Submitted callback.
      *
-     * @var Closure
+     * @var Closure[]
      */
-    protected $submitted;
+    protected $submitted = [];
 
     /**
      * Saving callback.
      *
-     * @var Closure
+     * @var Closure[]
      */
-    protected $saving;
+    protected $saving = [];
 
     /**
      * Saved callback.
      *
-     * @var Closure
+     * @var Closure[]
      */
-    protected $saved;
+    protected $saved = [];
 
     /**
      * Data for save to current model from input.
@@ -135,6 +136,13 @@ class Form implements Renderable
      * @var array
      */
     public static $availableFields = [];
+
+    /**
+     * Form field alias.
+     *
+     * @var array
+     */
+    public static $fieldAlias = [];
 
     /**
      * Ignored saving fields.
@@ -271,25 +279,29 @@ class Form implements Renderable
     {
         $ids = explode(',', $id);
 
-        foreach ($ids as $id) {
-            if (empty($id)) {
-                continue;
-            }
-            $this->deleteFilesAndImages($id);
-            $this->model->find($id)->delete();
-        }
+        collect($ids)->filter()->each(function ($id) {
+            $this->deleteFiles($id);
+            $this->model()->find($id)->delete();
+        });
 
         return true;
     }
 
     /**
-     * Remove files or images in record.
+     * Remove files in record.
      *
      * @param $id
      */
-    protected function deleteFilesAndImages($id)
+    protected function deleteFiles($id)
     {
-        $data = $this->model->with($this->getRelations())
+        // If it's a soft delete, the files in the data will not be deleted.
+        if (in_array(SoftDeletes::class, class_uses($this->model))) {
+            return;
+        }
+
+        $data = $this
+            ->model()
+            ->with($this->getRelations())
             ->findOrFail($id)->toArray();
 
         $this->builder->fields()->filter(function ($field) {
@@ -301,14 +313,9 @@ class Form implements Renderable
         });
     }
 
-    /**
-     * Store a new record.
-     *
-     * @return \Illuminate\Http\RedirectResponse|\Illuminate\Routing\Redirector|\Illuminate\Http\JsonResponse
-     */
-    public function store()
+    public function pureStore($data = null)
     {
-        $data = Input::all();
+        $data = $data ? : Input::all();
 
         // Handle validation errors.
         if ($validationMessages = $this->validationMessages($data)) {
@@ -330,8 +337,20 @@ class Form implements Renderable
 
             $this->updateRelation($this->relations);
         });
+    }
 
-        if (($response = $this->complete($this->saved)) instanceof Response) {
+    /**
+     * Store a new record.
+     *
+     * @return \Illuminate\Http\RedirectResponse|\Illuminate\Routing\Redirector|\Illuminate\Http\JsonResponse
+     */
+    public function store()
+    {
+        if (($response = $this->pureStore()) instanceof Response) {
+            return $response;
+        }
+
+        if (($response = $this->callSaved()) instanceof Response) {
             return $response;
         }
 
@@ -433,8 +452,10 @@ class Form implements Renderable
      */
     protected function callSubmitted()
     {
-        if ($this->submitted instanceof Closure) {
-            return call_user_func($this->submitted, $this);
+        foreach ($this->submitted as $func) {
+            if ($func instanceof Closure && ($ret = call_user_func($func, $this)) instanceof Response) {
+                return $ret;
+            }
         }
     }
 
@@ -445,22 +466,24 @@ class Form implements Renderable
      */
     protected function callSaving()
     {
-        if ($this->saving instanceof Closure) {
-            return call_user_func($this->saving, $this);
+        foreach ($this->saving as $func) {
+            if ($func instanceof Closure && ($ret = call_user_func($func, $this)) instanceof Response) {
+                return $ret;
+            }
         }
     }
 
     /**
      * Callback after saving a Model.
      *
-     * @param Closure|null $callback
-     *
      * @return mixed|null
      */
-    protected function complete(Closure $callback = null)
+    protected function callSaved()
     {
-        if ($callback instanceof Closure) {
-            return $callback($this);
+        foreach ($this->saved as $func) {
+            if ($func instanceof Closure && ($ret = call_user_func($func, $this)) instanceof Response) {
+                return $ret;
+            }
         }
     }
 
@@ -519,7 +542,7 @@ class Form implements Renderable
             $this->updateRelation($this->relations);
         });
 
-        if (($result = $this->complete($this->saved)) instanceof Response) {
+        if (($result = $this->callSaved()) instanceof Response) {
             return $result;
         }
 
@@ -865,7 +888,7 @@ class Form implements Renderable
      */
     public function submitted(Closure $callback)
     {
-        $this->submitted = $callback;
+        $this->submitted[] = $callback;
     }
 
     /**
@@ -877,7 +900,7 @@ class Form implements Renderable
      */
     public function saving(Closure $callback)
     {
-        $this->saving = $callback;
+        $this->saving[] = $callback;
     }
 
     /**
@@ -889,7 +912,7 @@ class Form implements Renderable
      */
     public function saved(Closure $callback)
     {
-        $this->saved = $callback;
+        $this->saved[] = $callback;
     }
 
     /**
@@ -1198,6 +1221,30 @@ class Form implements Renderable
     }
 
     /**
+     * Disable View Checkbox on footer.
+     *
+     * @return $this
+     */
+    public function disableViewCheck()
+    {
+        $this->builder()->getFooter()->disableViewCheck();
+
+        return $this;
+    }
+
+    /**
+     * Disable Editing Checkbox on footer.
+     *
+     * @return $this
+     */
+    public function disableEditingCheck()
+    {
+        $this->builder()->getFooter()->disableEditingCheck();
+
+        return $this;
+    }
+
+    /**
      * Footer setting for form.
      *
      * @param Closure $callback
@@ -1220,10 +1267,6 @@ class Form implements Renderable
 
         if ($slice != 0) {
             $segments = array_slice($segments, 0, $slice);
-        }
-        // # fix #1768
-        if ($segments[0] == 'http:' && config('admin.secure') == true) {
-            $segments[0] = 'https:';
         }
 
         return implode('/', $segments);
@@ -1335,6 +1378,19 @@ class Form implements Renderable
     }
 
     /**
+     * Set form field alias.
+     *
+     * @param string $field
+     * @param string $alias
+     *
+     * @return void
+     */
+    public static function alias($field, $alias)
+    {
+        static::$fieldAlias[$alias] = $field;
+    }
+
+    /**
      * Remove registered field.
      *
      * @param array|string $abstract
@@ -1353,6 +1409,11 @@ class Form implements Renderable
      */
     public static function findFieldClass($method)
     {
+        // If alias exists.
+        if (isset(static::$fieldAlias[$method])) {
+            $method = static::$fieldAlias[$method];
+        }
+
         $class = array_get(static::$availableFields, $method);
 
         if (class_exists($class)) {
@@ -1422,7 +1483,7 @@ class Form implements Renderable
      * @param string $method
      * @param array  $arguments
      *
-     * @return Field|void
+     * @return Field
      */
     public function __call($method, $arguments)
     {
@@ -1435,5 +1496,9 @@ class Form implements Renderable
 
             return $element;
         }
+
+        // admin_error('Error', "Field type [$method] does not exist.");
+
+        // return new Field\Nullable();
     }
 }
