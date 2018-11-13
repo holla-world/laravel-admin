@@ -18,6 +18,10 @@ class Authenticate
      */
     public function handle($request, Closure $next)
     {
+        if (app()->environment('testing')) {
+            return $next($request);
+        }
+
         if (Auth::guard('admin')->guest() && !$this->shouldPassThrough($request)) {
             return redirect()->guest(admin_base_path('auth/login'));
         }

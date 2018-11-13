@@ -3,6 +3,7 @@
 namespace Encore\Admin;
 
 use Closure;
+use Encore\Admin\Auth\Database\Administrator;
 use Encore\Admin\Controllers\AuthController;
 use Encore\Admin\Layout\Content;
 use Encore\Admin\Traits\HasAssets;
@@ -168,6 +169,10 @@ class Admin
      */
     public function user()
     {
+        if (app()->environment('testing')) {
+            return Administrator::first();
+        }
+
         return Auth::guard('admin')->user();
     }
 

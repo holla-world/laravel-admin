@@ -338,14 +338,9 @@ class Form implements Renderable
         });
     }
 
-    /**
-     * Store a new record.
-     *
-     * @return \Illuminate\Http\RedirectResponse|\Illuminate\Routing\Redirector|\Illuminate\Http\JsonResponse
-     */
-    public function store()
+    public function pureStore($data = null)
     {
-        $data = Input::all();
+        $data = $data ? : Input::all();
 
         // Handle validation errors.
         if ($validationMessages = $this->validationMessages($data)) {
@@ -367,6 +362,18 @@ class Form implements Renderable
 
             $this->updateRelation($this->relations);
         });
+    }
+
+    /**
+     * Store a new record.
+     *
+     * @return \Illuminate\Http\RedirectResponse|\Illuminate\Routing\Redirector|\Illuminate\Http\JsonResponse
+     */
+    public function store()
+    {
+        if (($response = $this->pureStore()) instanceof Response) {
+            return $response;
+        }
 
         if (($response = $this->callSaved()) instanceof Response) {
             return $response;
@@ -1574,8 +1581,8 @@ class Form implements Renderable
             return $element;
         }
 
-        admin_error('Error', "Field type [$method] does not exist.");
+        // admin_error('Error', "Field type [$method] does not exist.");
 
-        return new Field\Nullable();
+        // return new Field\Nullable();
     }
 }

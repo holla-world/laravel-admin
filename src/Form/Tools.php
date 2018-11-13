@@ -35,6 +35,8 @@ class Tools implements Renderable
      */
     protected $prepends;
 
+    protected $resource;
+
     /**
      * Create a new Tools instance.
      *
@@ -118,7 +120,12 @@ class Tools implements Renderable
      */
     protected function getListPath()
     {
-        return $this->form->getResource();
+        return $this->resource ?: $this->form->getResource();
+    }
+
+    public function setListPath($resource)
+    {
+        $this->resource = $resource;
     }
 
     /**
