@@ -35,8 +35,6 @@ class Tools implements Renderable
      */
     protected $prepends;
 
-    protected $resource;
-
     /**
      * Create a new Tools instance.
      *
@@ -120,12 +118,7 @@ class Tools implements Renderable
      */
     protected function getListPath()
     {
-        return $this->resource ?: $this->form->getResource();
-    }
-
-    public function setListPath($resource)
-    {
-        $this->resource = $resource;
+        return $this->form->getResource();
     }
 
     /**
@@ -165,7 +158,7 @@ class Tools implements Renderable
 
         return <<<EOT
 <div class="btn-group pull-right" style="margin-right: 5px">
-    <a href="{$this->getListPath()}" class="btn btn-sm btn-default" title="$text"><i class="fa fa-list"></i><span class="hidden-xs">&nbsp;$text</span></a>
+    <a href="{$this->getListPath()}" class="btn btn-sm btn-default"><i class="fa fa-list"></i>&nbsp;$text</a>
 </div>
 EOT;
     }
@@ -181,8 +174,8 @@ EOT;
 
         return <<<HTML
 <div class="btn-group pull-right" style="margin-right: 5px">
-    <a href="{$this->getViewPath()}" class="btn btn-sm btn-primary" title="{$view}">
-        <i class="fa fa-eye"></i><span class="hidden-xs"> {$view}</span>
+    <a href="{$this->getViewPath()}" class="btn btn-sm btn-primary">
+        <i class="fa fa-eye"></i> {$view}
     </a>
 </div>
 HTML;
@@ -206,39 +199,34 @@ HTML;
 $('.{$class}-delete').unbind('click').click(function() {
 
     swal({
-        title: "$deleteConfirm",
-        type: "warning",
-        showCancelButton: true,
-        confirmButtonColor: "#DD6B55",
-        confirmButtonText: "$confirm",
-        showLoaderOnConfirm: true,
-        cancelButtonText: "$cancel",
-        preConfirm: function() {
-            return new Promise(function(resolve) {
-                $.ajax({
-                    method: 'post',
-                    url: '{$this->getDeletePath()}',
-                    data: {
-                        _method:'delete',
-                        _token:LA.token,
-                    },
-                    success: function (data) {
-                        $.pjax({container:'#pjax-container', url: '{$this->getListPath()}' });
+      title: "$deleteConfirm",
+      type: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#DD6B55",
+      confirmButtonText: "$confirm",
+      closeOnConfirm: false,
+      cancelButtonText: "$cancel"
+    },
+    function(){
+        $.ajax({
+            method: 'post',
+            url: '{$this->getDeletePath()}',
+            data: {
+                _method:'delete',
+                _token:LA.token,
+            },
+            success: function (data) {
+                $.pjax({container:'#pjax-container', url: '{$this->getListPath()}' });
 
-                        resolve(data);
+                if (typeof data === 'object') {
+                    if (data.status) {
+                        swal(data.message, '', 'success');
+                    } else {
+                        swal(data.message, '', 'error');
                     }
-                });
-            });
-        }
-    }).then(function(result) {
-        var data = result.value;
-        if (typeof data === 'object') {
-            if (data.status) {
-                swal(data.message, '', 'success');
-            } else {
-                swal(data.message, '', 'error');
+                }
             }
-        }
+        });
     });
 });
 
@@ -250,8 +238,8 @@ SCRIPT;
 
         return <<<HTML
 <div class="btn-group pull-right" style="margin-right: 5px">
-    <a href="javascript:void(0);" class="btn btn-sm btn-danger {$class}-delete" title="{$delete}">
-        <i class="fa fa-trash"></i><span class="hidden-xs">  {$delete}</span>
+    <a href="javascript:void(0);" class="btn btn-sm btn-danger {$class}-delete">
+        <i class="fa fa-trash"></i>  {$delete}
     </a>
 </div>
 HTML;
