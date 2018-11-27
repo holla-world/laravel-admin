@@ -110,6 +110,11 @@ class Form implements Renderable
     protected $saved = [];
 
     /**
+     * @var Retrieved Callback
+     */
+    protected $retrieved = null;
+
+    /**
      * Data for save to current model from input.
      *
      * @var array
@@ -488,6 +493,24 @@ class Form implements Renderable
     }
 
     /**
+     * Callback after saving a Model.
+     *
+     * @return mixed|null
+     */
+    protected function callRetrieved()
+    {
+        if (!$func = $this->retrieved) {
+            return ;
+        }
+
+        if (!$func instanceof Closure) {
+            return false;
+        }
+
+        call_user_func($func, $this->model);
+    }
+
+    /**
      * Handle update.
      *
      * @param int $id
@@ -513,6 +536,8 @@ class Form implements Renderable
 
         /* @var Model $this->model */
         $this->model = $this->model->with($this->getRelations())->findOrFail($id);
+
+        $this->callRetrieved();
 
         $this->setFieldOriginalValue();
 
@@ -913,6 +938,11 @@ class Form implements Renderable
     public function saved(Closure $callback)
     {
         $this->saved[] = $callback;
+    }
+
+    public function retrieved(Closure $callback)
+    {
+        $this->retrieved = $callback;
     }
 
     /**
